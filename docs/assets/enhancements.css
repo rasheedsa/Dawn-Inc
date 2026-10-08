@@ -1,0 +1,17 @@
+[hidden] { display: none !important; }
+html { scroll-padding-top: 7rem; }
+:focus-visible { outline: 3px solid #9a421e !important; outline-offset: 4px; }
+.mobile-navigation { padding: 1rem 5%; border-top: 1px solid #ddd; background: #fff; }
+.mobile-navigation a { display: block; padding: .8rem; color: #243c2d; }
+.contact-options { padding: 2rem; border: 1px solid #dedbd4; border-radius: 1rem; background: #fff; }
+.contact-options h3 { margin-top: 2rem; }
+.contact-options ol { list-style: decimal; padding-left: 1.5rem; }
+.contact-options li { padding: .4rem 0; }
+.contact-note { margin-top: 1.25rem; font-size: .95rem; }
+.map-placeholder { display: flex; flex-direction: column; justify-content: center; padding: 2rem; background: #f0eee7; border-radius: 1rem; }
+.policy-page { max-width: 850px; min-height: 55vh; }
+.policy-page p { margin-top: 1.4rem; }
+.footer-contact a { overflow-wrap: anywhere; }
+@media (min-width: 901px) { .mobile-navigation { display: none; } }
+@media (max-width: 600px) { .contact-options { padding: 1.25rem; } .button-row { flex-wrap: wrap; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
