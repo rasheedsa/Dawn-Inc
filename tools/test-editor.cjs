@@ -36,6 +36,51 @@ const server = http.createServer((request, response) => {
   try {
     await page.goto(url+'editor/'); await ready();
     assert.match(await frame.locator('h1').innerText(), /A place to belong/);
+    assert.equal(await page.locator('#font-family').isDisabled(),true);
+    const paragraph = frame.locator('.hero-description');
+    await paragraph.click();
+    await page.locator('#font-family').selectOption('Georgia, serif');
+    await page.locator('#font-size').fill('24'); await page.locator('#font-size').press('Tab');
+    await page.locator('#font-colour').evaluate(el=>{el.value='#803322';el.dispatchEvent(new Event('input',{bubbles:true}));});
+    await page.locator('#format-bold').click();
+    await page.locator('#format-italic').click();
+    await page.locator('#format-underline').click();
+    await page.locator('#align-center').click();
+    const formatting = await paragraph.evaluate(el=>({font:el.style.fontFamily,size:el.style.fontSize,colour:el.style.color,bold:el.style.fontWeight,italic:el.style.fontStyle,underline:el.style.textDecoration,align:el.style.textAlign}));
+    assert.deepEqual(formatting,{font:'Georgia, serif',size:'24px',colour:'rgb(128, 51, 34)',bold:'700',italic:'italic',underline:'underline',align:'center'});
+    await page.locator('#undo').click(); await ready();
+    assert.equal(await paragraph.evaluate(el=>el.style.textAlign),'');
+    await page.locator('#redo').click(); await ready();
+    assert.equal(await paragraph.evaluate(el=>el.style.textAlign),'center');
+    await page.reload(); await ready();
+    assert.equal(await paragraph.evaluate(el=>el.style.fontSize),'24px');
+    await paragraph.click(); await page.locator('#clear-format').click();
+    assert.equal(await paragraph.getAttribute('style'),null);
+    await page.locator('#font-size').fill('200'); await page.locator('#font-size').press('Tab');
+    assert.match(await page.locator('#status').innerText(),/8 to 120/);
+    assert.equal(await paragraph.evaluate(el=>el.style.fontSize),'');
+    console.log('PASS block fonts, sizes, colour, styles, alignment, undo/redo, reload, reset and size validation');
+
+    await paragraph.evaluate(el=>{
+      const range=el.ownerDocument.createRange();range.setStart(el.firstChild,0);range.setEnd(el.firstChild,14);
+      const selection=el.ownerDocument.defaultView.getSelection();selection.removeAllRanges();selection.addRange(range);
+      el.ownerDocument.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.locator('#format-bold').click();
+    assert.equal(await paragraph.locator('span').evaluate(el=>el.style.fontWeight),'700');
+    await page.locator('#format-bold').click();
+    assert.equal(await paragraph.locator('span').evaluate(el=>el.style.fontWeight),'400');
+    await page.locator('#format-bold').click();
+    await page.locator('#format-italic').click();
+    await page.locator('#format-underline').click();
+    await page.locator('#format-underline').click();
+    await page.locator('#font-family').selectOption('Verdana, sans-serif');
+    await page.locator('#font-size').fill('26'); await page.locator('#font-size').press('Tab');
+    assert.equal(await paragraph.locator('span').count(),1);
+    assert.equal(await paragraph.locator('span').evaluate(el=>el.style.fontSize),'26px');
+    assert.equal(await paragraph.locator('span').evaluate(el=>el.style.textDecoration),'none');
+    assert.equal(await paragraph.evaluate(el=>el.style.fontSize),'');
+    console.log('PASS highlighted word formatting, toggles and selection preservation across toolbar controls');
     await frame.locator('h1').click();
     await frame.locator('h1').fill('A brighter day starts here.');
     await page.waitForFunction(() => document.querySelector('#status').textContent.startsWith('Draft saved'));
@@ -55,6 +100,7 @@ const server = http.createServer((request, response) => {
     console.log('PASS reload recovery and independent page drafts');
 
     await frame.locator('.community-image').click();
+    assert.equal(await page.locator('#font-family').isDisabled(),true);
     await page.locator('#image-alt').fill('A new image description');
     await page.locator('#image-file').setInputFiles(path.join(root,'images/dawn-logo.jpg'));
     await page.waitForFunction(() => document.querySelector('#canvas').contentDocument.querySelector('.community-image').src.startsWith('data:image/jpeg'));
@@ -88,6 +134,9 @@ const server = http.createServer((request, response) => {
     assert.match(exported,/data:image\/jpeg;base64/);
     assert.match(exported,/A new image description/);
     assert.match(exported,/assets\/site.js/);
+    assert.match(exported,/font-family: Verdana, sans-serif/);
+    assert.match(exported,/font-size: 26px/);
+    assert.match(exported,/font-weight: 700/);
     assert.doesNotMatch(exported,/data-ve-|contenteditable|ve-base|ve-style|ve-preview/);
     const [backup] = await Promise.all([page.waitForEvent('download'),page.locator('#download-site').click()]);
     const backupPath = path.join(os.tmpdir(),'dawn-editor-test.zip');

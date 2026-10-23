@@ -24,6 +24,15 @@
       <div class="status-box"><span class="status-dot" aria-hidden="true"></span><p id="status" role="status">Loading page…</p></div>
       <p class="draft-note">Drafts stay in this browser. They do not change the live website. Download a backup before clearing browser data.</p>
       <section class="settings-group"><h2>Selected element</h2><p id="selection-label" class="hint">Click something in the page preview to edit it.</p>
+        <fieldset id="text-format" disabled>
+          <legend>Text formatting</legend>
+          <p class="hint">Highlight words to format them, or click text to format its whole block. Alignment and Reset formatting apply to the whole paragraph or heading.</p>
+          <label>Font<select id="font-family"><option value="">Current font</option><option value="Arial, sans-serif">Arial</option><option value="Georgia, serif">Georgia</option><option value="Verdana, sans-serif">Verdana</option><option value="Tahoma, sans-serif">Tahoma</option><option value="'Trebuchet MS', sans-serif">Trebuchet MS</option><option value="'Times New Roman', serif">Times New Roman</option><option value="'Courier New', monospace">Courier New</option></select></label>
+          <div class="format-row"><label>Size (px)<input id="font-size" type="number" min="8" max="120" step="1"></label><label>Text colour<input id="font-colour" type="color" value="#193c30"></label></div>
+          <div class="format-buttons" role="group" aria-label="Text style"><button id="format-bold" type="button" aria-pressed="false"><strong>Bold</strong></button><button id="format-italic" type="button" aria-pressed="false"><em>Italic</em></button><button id="format-underline" type="button" aria-pressed="false"><u>Underline</u></button></div>
+          <div class="format-buttons" role="group" aria-label="Text alignment"><button id="align-left" type="button" aria-pressed="false">Left</button><button id="align-center" type="button" aria-pressed="false">Centre</button><button id="align-right" type="button" aria-pressed="false">Right</button></div>
+          <button id="clear-format" type="button">Reset formatting</button>
+        </fieldset>
         <div id="image-settings" hidden>
           <label>Image description<input id="image-alt" type="text" maxlength="500"></label>
           <label>Image URL<input id="image-url" type="url" placeholder="https://…"></label><button id="apply-image">Use image URL</button>

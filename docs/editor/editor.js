@@ -9,6 +9,62 @@
   let page = pages[0], selected = null, preview = false, ready = false;
   let history = [], redo = [], timer, generation = 0;
   let loadWarning = '';
+  let textRange = null, multipleBlocks = false;
+  const formatProperties = ['font-family', 'font-size', 'color', 'font-weight', 'font-style', 'text-decoration', 'text-align'];
+
+  function textBlock(node) {
+    const element = node?.nodeType === 3 ? node.parentElement : node;
+    return element?.closest('h1,h2,h3,h4,p,li') || element?.closest('[data-ve-editable]');
+  }
+  function rememberRange() {
+    const selection = frame.contentWindow.getSelection();
+    textRange = null; multipleBlocks = false;
+    if (!selection.rangeCount || selection.isCollapsed) return;
+    const range = selection.getRangeAt(0);
+    const block = textBlock(range.startContainer);
+    if (!block || block !== textBlock(range.endContainer)) { multipleBlocks = true; return; }
+    textRange = range.cloneRange();
+  }
+  function syncFormatting() {
+    const enabled = ready && !preview && selected && selected.tagName !== 'IMG';
+    $('text-format').disabled = !enabled;
+    if (!enabled) return;
+    const node = textRange ? (textRange.startContainer.nodeType === 3 ? textRange.startContainer.parentElement : textRange.startContainer) : selected;
+    const style = frame.contentWindow.getComputedStyle(node);
+    const normalize = value => value.replace(/["']/g, '').toLowerCase();
+    $('font-family').value = [...$('font-family').options].find(option => normalize(option.value) === normalize(style.fontFamily))?.value || '';
+    $('font-size').value = Math.round(parseFloat(style.fontSize));
+    const rgb = style.color.match(/[\d.]+/g);
+    if (rgb?.length >= 3) $('font-colour').value = '#' + rgb.slice(0, 3).map(value => Math.round(Number(value)).toString(16).padStart(2, '0')).join('');
+    $('format-bold').setAttribute('aria-pressed', String(Number(style.fontWeight) >= 600));
+    $('format-italic').setAttribute('aria-pressed', String(style.fontStyle === 'italic'));
+    $('format-underline').setAttribute('aria-pressed', String(style.textDecorationLine.includes('underline')));
+    const align = frame.contentWindow.getComputedStyle(textBlock(selected) || selected).textAlign;
+    for (const value of ['left', 'center', 'right']) $('align-' + value).setAttribute('aria-pressed', String(align === value || value === 'left' && align === 'start'));
+  }
+  function formatText(property, value) {
+    if (!ready || preview || !selected || selected.tagName === 'IMG') return;
+    if (multipleBlocks) return status('Highlight words within one paragraph or heading at a time.');
+    flush(); // Keep formatting as its own undo step, separate from earlier typing.
+    const doc = frame.contentDocument;
+    if (property === 'text-align') {
+      (textBlock(selected) || selected).style.setProperty(property, value);
+    } else if (textRange && !textRange.collapsed) {
+      const range = textRange.cloneRange();
+      const ancestor = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer.parentElement : range.commonAncestorContainer;
+      const reuse = ancestor.tagName === 'SPAN' && ancestor.style.length && range.toString() === ancestor.textContent;
+      const span = reuse ? ancestor : doc.createElement('span');
+      if (!reuse) { span.append(range.extractContents()); range.insertNode(span); }
+      span.style.setProperty(property, value);
+      range.selectNodeContents(span);
+      const selection = frame.contentWindow.getSelection();
+      selection.removeAllRanges(); selection.addRange(range);
+      textRange = range.cloneRange();
+    } else {
+      selected.style.setProperty(property, value);
+    }
+    flush(); syncFormatting();
+  }
 
   function status(message) { $('status').textContent = message; }
   function storedDraft(name) {
@@ -79,6 +135,8 @@
   function clearSelection() {
     frame.contentDocument.querySelectorAll('[data-ve-selected]').forEach(node => node.removeAttribute('data-ve-selected'));
     selected = null;
+    textRange = null; multipleBlocks = false;
+    $('text-format').disabled = true;
     $('selection-label').textContent = preview ? 'Preview mode. Return to editing to make changes.' : 'Click something in the page preview to edit it.';
     $('image-settings').hidden = true;
     $('link-settings').hidden = true;
@@ -100,6 +158,7 @@
     const link = node.closest('a');
     $('link-settings').hidden = !link;
     if (link) $('link-url').value = link.getAttribute('href') || '';
+    rememberRange(); syncFormatting();
   }
   function setMode() {
     if (!ready) return;
@@ -138,6 +197,9 @@
     });
     doc.addEventListener('focusin', event => {
       if (!preview) select(event.target.closest('img,[data-ve-editable]'));
+    });
+    doc.addEventListener('selectionchange', () => {
+      if (!preview && selected) { rememberRange(); syncFormatting(); }
     });
     doc.addEventListener('click', event => {
       const target = event.target;
@@ -306,6 +368,34 @@
     finally { $('download-site').disabled = false; }
   }
   $('page').addEventListener('change', event => loadPage(event.target.value));
+  $('font-family').addEventListener('change', event => {
+    if (event.target.value) formatText('font-family', event.target.value);
+  });
+  $('font-size').addEventListener('change', event => {
+    const size = Number(event.target.value);
+    if (!Number.isInteger(size) || size < 8 || size > 120) {
+      status('Choose a whole font size from 8 to 120 pixels.'); syncFormatting(); return;
+    }
+    formatText('font-size', size + 'px');
+  });
+  $('font-colour').addEventListener('input', event => formatText('color', event.target.value));
+  for (const [id, property, on, off] of [
+    ['format-bold', 'font-weight', '700', '400'],
+    ['format-italic', 'font-style', 'italic', 'normal'],
+    ['format-underline', 'text-decoration', 'underline', 'none']
+  ]) $(id).addEventListener('click', () => formatText(property, $(id).getAttribute('aria-pressed') === 'true' ? off : on));
+  for (const value of ['left', 'center', 'right']) $('align-' + value).addEventListener('click', () => formatText('text-align', value));
+  $('clear-format').addEventListener('click', () => {
+    if (!ready || preview || !selected || selected.tagName === 'IMG') return;
+    flush();
+    const block = textBlock(selected) || selected;
+    for (const node of [block, ...block.querySelectorAll('[style]')]) {
+      for (const property of formatProperties) node.style.removeProperty(property);
+      if (!node.style.length) node.removeAttribute('style');
+    }
+    frame.contentWindow.getSelection().removeAllRanges();
+    select(block); flush(); syncFormatting();
+  });
   $('undo').addEventListener('click', undoEdit);
   $('redo').addEventListener('click', redoEdit);
   $('preview').addEventListener('click', () => { flush(); preview = !preview; setMode(); });

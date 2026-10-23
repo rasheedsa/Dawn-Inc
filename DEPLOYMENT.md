@@ -27,6 +27,12 @@ in any page footer. In development use `/editor/` on the local server above.
 2. Use **Preview**, **Desktop**, and **Mobile** to review it. Undo and redo work
    within the current page editing session. Page titles and search descriptions
    are in the side panel. Each page has its own header and footer.
+   **Text formatting** offers built-in fonts, sizes from 8–120 pixels, colour,
+   bold, italic, underline and alignment. Highlight words for inline formatting,
+   or click text to format the selected element. Alignment and **Reset formatting**
+   affect its whole paragraph or heading. Reset removes inline formatting while
+   preserving the site's default styles and semantic emphasis. Formatting is
+   included in drafts, HTML downloads and ZIP exports.
 3. Drafts are saved in this browser's local storage. They are not uploaded,
    shared between devices or published. **Discard this page's local draft**
    reloads the published file after confirmation. A warning appears if a draft
